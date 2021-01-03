@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
 using Microsoft.EntityFrameworkCore;
 
 namespace EntityFrameworkTest
@@ -10,13 +11,14 @@ namespace EntityFrameworkTest
         public DbSet<Document> Documents { get; set; }
 
         protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
-            => optionsBuilder.UseSqlite("Date Source=database.db");
+            => optionsBuilder.UseSqlite("DataSource=database.db");
     }
 
     public class Word
     {
         [Key]
         public string Keyword { get; set; }
+
         public List<Document> Documents { get; } = new List<Document>();
     }
 
@@ -24,6 +26,7 @@ namespace EntityFrameworkTest
     {
         [Key]
         public int Id { get; set; }
+        [Required]
         public string Url { get; set; }
         public List<Word> Words { get; } = new List<Word>();
     }
