@@ -11,7 +11,7 @@ namespace EntityFrameworkTest
         public DbSet<Document> Documents { get; set; }
 
         protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
-            => optionsBuilder.UseSqlite("DataSource=database.db");
+            => optionsBuilder.UseSqlite("DataSource=/home/spookdot/RiderProjects/EntityFrameworkTest/database.db");
     }
 
     public class Word
