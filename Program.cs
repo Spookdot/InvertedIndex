@@ -17,10 +17,15 @@ namespace EntityFrameworkTest
         static void Main(string[] args)
         {
             var tasks = new List<Task>();
-            if ((Document = Context.Documents.Single(d => d.Url == args[0])) == null)
+            try
+            {
+                Document = Context.Documents.Single(d => d.Url == args[0]);
+            }
+            catch (InvalidOperationException)
             {
                 Document = new Document() {Url = args[0]};
                 Context.Documents.Add(Document);
+                Context.SaveChanges();
             }
             var fs = File.OpenText(args[0]);
             string line;
@@ -41,15 +46,20 @@ namespace EntityFrameworkTest
             foreach (var s in line.Split())
             {
                 var word = rgx.Replace(s.ToLower(), "");
-                Word wordEntry;
-                if((wordEntry = await Context.Words.SingleAsync(w => w.Keyword == word)) == null)
+                try
+                {
+                    var wordEntry = await Context.Words.SingleAsync(w => w.Keyword == word);
+                    var documents = Context.Entry(wordEntry).Collection(b => b.Documents).Query().Where(x => x.Url == Document.Url)
+                        .ToList();
+                    if(documents.Count == 0)
+                    {
+                        wordEntry.Documents.Add(Document);
+                        await Context.SaveChangesAsync();
+                    }
+                }
+                catch (InvalidOperationException)
                 {
                     await Context.Words.AddAsync(new Word() {Keyword = word, Documents = { Document }});
-                    await Context.SaveChangesAsync();
-                }
-                else if(wordEntry.Documents.Exists(x => x.Url == Document.Url))
-                {
-                    wordEntry.Documents.Add(Document);
                     await Context.SaveChangesAsync();
                 }
             }
