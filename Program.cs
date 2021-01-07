@@ -10,18 +10,14 @@ namespace EntityFrameworkTest
 {
     class Program
     {
-        private static readonly Regex rgx = new(@"\W");
+        private static readonly Regex rgx = new(@"[^\w ]");
         private static readonly IndexContext Context = new();
         private static Document Document;
 
         static void Main(string[] args)
         {
             var tasks = new List<Task>();
-            try
-            {
-                Document = Context.Documents.Single(d => d.Url == args[0]);
-            }
-            catch (InvalidOperationException)
+            if((Document = Context.Documents.SingleOrDefault(d => d.Url == args[0])) == null)
             {
                 Document = new Document() {Url = args[0]};
                 Context.Documents.Add(Document);
@@ -35,6 +31,7 @@ namespace EntityFrameworkTest
             }
 
             Task.WaitAll(tasks.ToArray());
+            Context.SaveChanges();
             foreach (var word in Context.Words.ToList())
             {
                 Console.WriteLine(word.Keyword);
@@ -43,24 +40,19 @@ namespace EntityFrameworkTest
 
         static async Task ProcessLine(string line)
         {
-            foreach (var s in line.Split())
+            foreach (var s in rgx.Replace(line.ToLower(), "").Split())
             {
-                var word = rgx.Replace(s.ToLower(), "");
-                try
+                Word wordEntry;
+                if ((wordEntry = await Context.Words.SingleOrDefaultAsync(w => w.Keyword == s)) == null)
                 {
-                    var wordEntry = await Context.Words.SingleAsync(w => w.Keyword == word);
-                    var documents = Context.Entry(wordEntry).Collection(b => b.Documents).Query().Where(x => x.Url == Document.Url)
-                        .ToList();
-                    if(documents.Count == 0)
-                    {
-                        wordEntry.Documents.Add(Document);
-                        await Context.SaveChangesAsync();
-                    }
-                }
-                catch (InvalidOperationException)
-                {
-                    await Context.Words.AddAsync(new Word() {Keyword = word, Documents = { Document }});
+                    await Context.Words.AddAsync(new Word() {Keyword = s, Documents = { Document }});
                     await Context.SaveChangesAsync();
+                }
+                else
+                {
+                    var documents = Context.Entry(wordEntry).Collection(b => b.Documents)
+                        .Query().Where(x => x.Url == Document.Url).ToList();
+                    if(documents.Count == 0) { wordEntry.Documents.Add(Document); }
                 }
             }
         }
